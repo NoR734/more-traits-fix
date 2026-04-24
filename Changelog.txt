@@ -1,0 +1,2 @@
+Main Changelog:
+- Disable MoodleFramework Requirements and Checks and use Alcoholism fallback behavior.
