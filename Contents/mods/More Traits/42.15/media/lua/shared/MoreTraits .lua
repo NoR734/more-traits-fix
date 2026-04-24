@@ -2837,7 +2837,11 @@ local function MT_FastGimpTraits(player)
         sendClientCommand(player, "ToadTraits", "FastGimp", { xSpeed = x, ySpeed = y })
     end
 
-    player:Move(FastGimpVector)
+    if player.moveUnmodded then
+        player:moveUnmodded(FastGimpVector)
+    else
+        player:Move(FastGimpVector)
+    end
 end
 
 local function checkBloodTraits(player)
