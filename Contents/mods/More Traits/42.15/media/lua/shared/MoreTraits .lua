@@ -182,6 +182,18 @@ local function round(number, decimals)
     return math.floor(number * power) / power
 end
 
+local function MT_ResetInfectionState(bodyDamage)
+    bodyDamage:setInfected(false)
+    bodyDamage:setInfectionMortalityDuration(-1)
+    bodyDamage:setInfectionTime(-1)
+    if bodyDamage.setInfectionLevel then
+        bodyDamage:setInfectionLevel(0)
+    end
+    if bodyDamage.setInfectionGrowthRate then
+        bodyDamage:setInfectionGrowthRate(0)
+    end
+end
+
 function ZombificationCure_OnCreate(items, result, player)
     local bodyDamage = player:getBodyDamage()
     local stats = player:getStats()
@@ -192,11 +204,7 @@ function ZombificationCure_OnCreate(items, result, player)
             bodyPart:RestoreToFullHealth()
         end
     end
-    bodyDamage:setInfected(false)
-    bodyDamage:setInfectionMortalityDuration(-1)
-    bodyDamage:setInfectionTime(-1)
-    bodyDamage:setInfectionLevel(0)
-    bodyDamage:setInfectionGrowthRate(0)
+    MT_ResetInfectionState(bodyDamage)
     stats:set(CharacterStat.UNHAPPINESS, 0)
     stats:set(CharacterStat.ENDURANCE, 0)
     stats:set(CharacterStat.BOREDOM, 0)
@@ -776,7 +784,7 @@ local function MTPlayerHit(player, _, __)
 
                         if isClient() then
                             local args = {
-                                bodyPart = bodyPart,
+                                partIndex = i,
                                 wasInfectedBefore = wasInfectedBefore,
                                 isInfected = isInfected,
                             }
@@ -784,10 +792,7 @@ local function MTPlayerHit(player, _, __)
                         else
                             if bodyPart:IsInfected() and not wasInfectedBefore and isInfected then
                                 bodyPart:SetInfected(false)
-                                bodyDamage:setInfected(false)
-                                bodyDamage:setInfectionMortalityDuration(-1)
-                                bodyDamage:setInfectionTime(-1)
-                                bodyDamage:setInfectionGrowthRate(0)
+                                MT_ResetInfectionState(bodyDamage)
                             end
 
                             if bodyPart:bleeding() then
@@ -806,7 +811,20 @@ local function MTPlayerHit(player, _, __)
                             end
 
                             if bodyPart:bitten() then
-                                bodyPart:SetBitten(false, false)
+                                if bodyPart.SetBitten then
+                                    bodyPart:SetBitten(false, false)
+                                elseif bodyPart.setBitten then
+                                    bodyPart:setBitten(false, false)
+                                end
+                                if bodyPart.setBiteTime then
+                                    bodyPart:setBiteTime(0)
+                                end
+                                if bodyPart.setInfectedWound then
+                                    bodyPart:setInfectedWound(false)
+                                end
+                                if bodyPart.setWoundInfectionLevel then
+                                    bodyPart:setWoundInfectionLevel(0)
+                                end
                                 bodyPart:SetHealth(100.0)
                             end
                         end
@@ -2838,8 +2856,8 @@ local function MT_FastGimpTraits(player)
     end
 
     if player.moveUnmodded then
-        player:moveUnmodded(FastGimpVector)
-    else
+        player:moveUnmodded(FastGimpVector:getX(), FastGimpVector:getY())
+    elseif player.Move then
         player:Move(FastGimpVector)
     end
 end
@@ -2997,8 +3015,12 @@ local function SuperImmune(player, playerdata)
     local stats = player:getStats()
     local zombieInfection = stats:get(CharacterStat.ZOMBIE_INFECTION)
     local bodyDamage = player:getBodyDamage()
+    local hasBodyInfection = bodyDamage:isInfected()
 
-    if zombieInfection <= 0 then
+    if zombieInfection <= 0 and not hasBodyInfection then
+        return
+    end
+    if playerdata.SuperImmuneActive then
         return
     end
 
@@ -3009,9 +3031,7 @@ local function SuperImmune(player, playerdata)
         -- We set the Fever here to 100 for the Health Loss and simulate fighting the infection
         stats:set(CharacterStat.ZOMBIE_FEVER, 100)
         stats:set(CharacterStat.ZOMBIE_INFECTION, 0)
-        bodyDamage:setInfected(false)
-        bodyDamage:setInfectionMortalityDuration(-1)
-        bodyDamage:setInfectionTime(-1)
+        MT_ResetInfectionState(bodyDamage)
 
         local parts = bodyDamage:getBodyParts()
         for i = 0, parts:size() - 1 do
@@ -3076,6 +3096,7 @@ local function SuperImmuneRecoveryProcess(player, playerdata)
     local speedRun = playerdata.QuickSuperImmune and 6 or 1
 
     local stats = player:getStats()
+    local bodyDamage = player:getBodyDamage()
     local illness = stats:get(CharacterStat.ZOMBIE_FEVER)
     local startIllness = illness -- Store to check if we need to sync later
 
@@ -3184,6 +3205,20 @@ local function SuperImmuneRecoveryProcess(player, playerdata)
             playerdata.SuperImmuneLethal = false
             playerdata.SuperImmuneTextSaid = false
             playerdata.SuperImmuneFeverNotified = false
+
+            if isClient() then
+                sendClientCommand(
+                        player,
+                        "ToadTraits",
+                        "UpdateStats",
+                        { zombie_fever = 0, zombie_infection = 0, sickness = 0, clear_wounds = true }
+                )
+            else
+                stats:set(CharacterStat.ZOMBIE_FEVER, 0)
+                stats:set(CharacterStat.ZOMBIE_INFECTION, 0)
+                stats:set(CharacterStat.SICKNESS, 0)
+                MT_ResetInfectionState(bodyDamage)
+            end
         end
 
         if
@@ -4113,12 +4148,38 @@ local function GymGoerUpdate(player, playerdata)
     end
 
     local fitness = player:getFitness()
+    if not fitness then
+        return
+    end
+
+    local function getCurrentGymStiffness(groupName)
+        if fitness.getCurrentExeStiffnessInc then
+            return fitness:getCurrentExeStiffnessInc(groupName) or 0
+        end
+        if fitness.getCurrentStiffnessInc then
+            return fitness:getCurrentStiffnessInc(groupName) or 0
+        end
+        return 0
+    end
+
+    local function clearFitnessStiffness(partType)
+        if not fitness then
+            return
+        end
+        local bodyPartString = BodyPartType.ToString(partType)
+        if fitness.removeStiffnessValue then
+            fitness:removeStiffnessValue(bodyPartString)
+        elseif fitness.removeStiffness then
+            fitness:removeStiffness(bodyPartString)
+        end
+    end
+
     if not playerdata.GymGoerStiffnessList then
         playerdata.GymGoerStiffnessList = {
-            fitness:getCurrentExeStiffnessInc("arms"),
-            fitness:getCurrentExeStiffnessInc("legs"),
-            fitness:getCurrentExeStiffnessInc("chest"),
-            fitness:getCurrentExeStiffnessInc("abs"),
+            getCurrentGymStiffness("arms"),
+            getCurrentGymStiffness("legs"),
+            getCurrentGymStiffness("chest"),
+            getCurrentGymStiffness("abs"),
         }
     end
 
@@ -4149,29 +4210,28 @@ local function GymGoerUpdate(player, playerdata)
 
     local stiffnessList = playerdata.GymGoerStiffnessList
     for i, group in ipairs(muscleGroups) do
-        local currentStiffness = fitness:getCurrentExeStiffnessInc(group.name)
-        local recordedPeak = stiffnessList[i]
+        local currentStiffness = getCurrentGymStiffness(group.name)
+        local recordedPeak = tonumber(stiffnessList[i]) or 0
 
         if recordedPeak > 0 and (currentStiffness == 0 or currentStiffness < (recordedPeak / 2)) then
             if isClient() then
                 local bodyParts = {}
                 for _, partType in ipairs(group.parts) do
-                    table.insert(bodyParts, partType:getIndex())
+                    table.insert(bodyParts, BodyPartType.ToIndex(partType))
                 end
                 sendClientCommand(
                         player,
                         "ToadTraits",
-                        "ProcessBodyPartMechanics",
+                        "BodyPartMechanics",
                         { bodyParts = bodyParts, partStiffness = 0, clearStrain = true }
                 )
             else
                 for _, partType in ipairs(group.parts) do
                     local part = player:getBodyDamage():getBodyPart(partType)
-                    if not part then
-                        return
+                    if part then
+                        part:setStiffness(0)
                     end
-                    part:setStiffness(0)
-                    fitness:removeStiffnessValue(BodyPartType.ToString(partType))
+                    clearFitnessStiffness(partType)
                 end
             end
             stiffnessList[i] = 0
