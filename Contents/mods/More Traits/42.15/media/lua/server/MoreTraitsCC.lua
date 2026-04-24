@@ -255,7 +255,11 @@ local function ProcessFastGimp(player, args)
     if not args.xSpeed and args.ySpeed then return end
     FastGimpVector:setX(args.xSpeed)
     FastGimpVector:setY(args.ySpeed)
-    player:Move(FastGimpVector)
+    if player.moveUnmodded then
+        player:moveUnmodded(FastGimpVector)
+    else
+        player:Move(FastGimpVector)
+    end
 end
 
 local function ProcessImmunocompromised(player, args)
