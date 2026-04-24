@@ -256,8 +256,8 @@ local function ProcessFastGimp(player, args)
     FastGimpVector:setX(args.xSpeed)
     FastGimpVector:setY(args.ySpeed)
     if player.moveUnmodded then
-        player:moveUnmodded(FastGimpVector)
-    else
+        player:moveUnmodded(FastGimpVector:getX(), FastGimpVector:getY())
+    elseif player.Move then
         player:Move(FastGimpVector)
     end
 end

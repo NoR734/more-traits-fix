@@ -2504,7 +2504,11 @@ local function MT_FastGimpTraits(player)
         sendClientCommand(player, 'ToadTraits', 'FastGimp', { xSpeed = x, ySpeed = y })
     end
     
-    player:Move(FastGimpVector)
+    if player.moveUnmodded then
+        player:moveUnmodded(FastGimpVector:getX(), FastGimpVector:getY())
+    elseif player.Move then
+        player:Move(FastGimpVector)
+    end
 end
 
 local function checkBloodTraits(player)
@@ -3494,6 +3498,10 @@ local function GymGoerUpdate(player, playerdata)
     end
 
     local fitness = player:getFitness()
+    if not fitness then
+        return
+    end
+
     if not playerdata.GymGoerStiffnessList then
         playerdata.GymGoerStiffnessList = {
             fitness:getCurrentExeStiffnessInc("arms"),
@@ -3512,8 +3520,8 @@ local function GymGoerUpdate(player, playerdata)
 
     local stiffnessList = playerdata.GymGoerStiffnessList
     for i, group in ipairs(muscleGroups) do
-        local currentStiffness = fitness:getCurrentExeStiffnessInc(group.name)
-        local recordedPeak = stiffnessList[i]
+        local currentStiffness = fitness:getCurrentExeStiffnessInc(group.name) or 0
+        local recordedPeak = tonumber(stiffnessList[i]) or 0
 
         if recordedPeak > 0 and (currentStiffness == 0 or currentStiffness < (recordedPeak / 2)) then
             if isClient() then
@@ -3521,7 +3529,7 @@ local function GymGoerUpdate(player, playerdata)
                 for _, partType in ipairs(group.parts) do
                     table.insert(bodyParts, partType:getIndex())
                 end
-                sendClientCommand(player, 'ToadTraits', 'ProcessBodyPartMechanics', { bodyParts = bodyParts, partStiffness = 0, clearStrain = true })
+                sendClientCommand(player, 'ToadTraits', 'BodyPartMechanics', { bodyParts = bodyParts, partStiffness = 0, clearStrain = true })
             else
                 for _, partType in ipairs(group.parts) do
                     local part = player:getBodyDamage():getBodyPart(partType)
