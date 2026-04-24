@@ -776,7 +776,7 @@ local function MTPlayerHit(player, _, __)
 
                         if isClient() then
                             local args = {
-                                bodyPart = bodyPart,
+                                partIndex = i,
                                 wasInfectedBefore = wasInfectedBefore,
                                 isInfected = isInfected,
                             }
@@ -787,6 +787,7 @@ local function MTPlayerHit(player, _, __)
                                 bodyDamage:setInfected(false)
                                 bodyDamage:setInfectionMortalityDuration(-1)
                                 bodyDamage:setInfectionTime(-1)
+                                bodyDamage:setInfectionLevel(0)
                                 bodyDamage:setInfectionGrowthRate(0)
                             end
 
@@ -806,7 +807,20 @@ local function MTPlayerHit(player, _, __)
                             end
 
                             if bodyPart:bitten() then
-                                bodyPart:SetBitten(false, false)
+                                if bodyPart.SetBitten then
+                                    bodyPart:SetBitten(false, false)
+                                elseif bodyPart.setBitten then
+                                    bodyPart:setBitten(false, false)
+                                end
+                                if bodyPart.setBiteTime then
+                                    bodyPart:setBiteTime(0)
+                                end
+                                if bodyPart.setInfectedWound then
+                                    bodyPart:setInfectedWound(false)
+                                end
+                                if bodyPart.setWoundInfectionLevel then
+                                    bodyPart:setWoundInfectionLevel(0)
+                                end
                                 bodyPart:SetHealth(100.0)
                             end
                         end
@@ -4117,12 +4131,34 @@ local function GymGoerUpdate(player, playerdata)
         return
     end
 
+    local function getCurrentGymStiffness(groupName)
+        if fitness.getCurrentExeStiffnessInc then
+            return fitness:getCurrentExeStiffnessInc(groupName) or 0
+        end
+        if fitness.getCurrentStiffnessInc then
+            return fitness:getCurrentStiffnessInc(groupName) or 0
+        end
+        return 0
+    end
+
+    local function clearFitnessStiffness(partType)
+        if not fitness then
+            return
+        end
+        local bodyPartString = BodyPartType.ToString(partType)
+        if fitness.removeStiffnessValue then
+            fitness:removeStiffnessValue(bodyPartString)
+        elseif fitness.removeStiffness then
+            fitness:removeStiffness(bodyPartString)
+        end
+    end
+
     if not playerdata.GymGoerStiffnessList then
         playerdata.GymGoerStiffnessList = {
-            fitness:getCurrentExeStiffnessInc("arms"),
-            fitness:getCurrentExeStiffnessInc("legs"),
-            fitness:getCurrentExeStiffnessInc("chest"),
-            fitness:getCurrentExeStiffnessInc("abs"),
+            getCurrentGymStiffness("arms"),
+            getCurrentGymStiffness("legs"),
+            getCurrentGymStiffness("chest"),
+            getCurrentGymStiffness("abs"),
         }
     end
 
@@ -4153,14 +4189,14 @@ local function GymGoerUpdate(player, playerdata)
 
     local stiffnessList = playerdata.GymGoerStiffnessList
     for i, group in ipairs(muscleGroups) do
-        local currentStiffness = fitness:getCurrentExeStiffnessInc(group.name) or 0
+        local currentStiffness = getCurrentGymStiffness(group.name)
         local recordedPeak = tonumber(stiffnessList[i]) or 0
 
         if recordedPeak > 0 and (currentStiffness == 0 or currentStiffness < (recordedPeak / 2)) then
             if isClient() then
                 local bodyParts = {}
                 for _, partType in ipairs(group.parts) do
-                    table.insert(bodyParts, partType:getIndex())
+                    table.insert(bodyParts, BodyPartType.ToIndex(partType))
                 end
                 sendClientCommand(
                         player,
@@ -4171,11 +4207,10 @@ local function GymGoerUpdate(player, playerdata)
             else
                 for _, partType in ipairs(group.parts) do
                     local part = player:getBodyDamage():getBodyPart(partType)
-                    if not part then
-                        return
+                    if part then
+                        part:setStiffness(0)
                     end
-                    part:setStiffness(0)
-                    fitness:removeStiffnessValue(BodyPartType.ToString(partType))
+                    clearFitnessStiffness(partType)
                 end
             end
             stiffnessList[i] = 0
