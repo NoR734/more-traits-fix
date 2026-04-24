@@ -8,6 +8,18 @@ local function tableContains(t, e)
     return false
 end
 
+local function resetInfectionState(bodyDamage)
+    bodyDamage:setInfected(false)
+    bodyDamage:setInfectionMortalityDuration(-1)
+    bodyDamage:setInfectionTime(-1)
+    if bodyDamage.setInfectionLevel then
+        bodyDamage:setInfectionLevel(0)
+    end
+    if bodyDamage.setInfectionGrowthRate then
+        bodyDamage:setInfectionGrowthRate(0)
+    end
+end
+
 
 -- Function covers Vagabond, Scrounger, Antique
 local function ProcessTraitLoot(player, args, modData, specificContainer)
@@ -152,11 +164,15 @@ local function UpdateStats(player, args, command)
         stats:set(CharacterStat.ZOMBIE_INFECTION, args.zombie_infection)
         if args.zombie_infection == 0 and args.clear_wounds then
             local bodyDamage = player:getBodyDamage()
+<<<<<<< codex/review-mod-for-build-42.17-6rpwya
+            resetInfectionState(bodyDamage)
+=======
             bodyDamage:setInfected(false)
             bodyDamage:setInfectionMortalityDuration(-1)
             bodyDamage:setInfectionTime(-1)
             bodyDamage:setInfectionLevel(0)
             bodyDamage:setInfectionGrowthRate(0)
+>>>>>>> main
 
             local parts = bodyDamage:getBodyParts()
             for i = 0, parts:size() - 1 do
@@ -323,11 +339,15 @@ local function ProcessEvasive(player, args)
 
     if bodyPart:IsInfected() and not args.wasInfectedBefore and args.isInfected then
         bodyPart:SetInfected(false)
+<<<<<<< codex/review-mod-for-build-42.17-6rpwya
+        resetInfectionState(bodyDamage)
+=======
         bodyDamage:setInfected(false)
         bodyDamage:setInfectionMortalityDuration(-1)
         bodyDamage:setInfectionTime(-1)
         bodyDamage:setInfectionLevel(0)
         bodyDamage:setInfectionGrowthRate(0)
+>>>>>>> main
     end
     
     if bodyPart:bleeding() then
