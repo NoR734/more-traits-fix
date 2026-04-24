@@ -155,6 +155,8 @@ local function UpdateStats(player, args, command)
             bodyDamage:setInfected(false)
             bodyDamage:setInfectionMortalityDuration(-1)
             bodyDamage:setInfectionTime(-1)
+            bodyDamage:setInfectionLevel(0)
+            bodyDamage:setInfectionGrowthRate(0)
 
             local parts = bodyDamage:getBodyParts()
             for i = 0, parts:size() - 1 do

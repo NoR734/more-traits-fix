@@ -3015,6 +3015,9 @@ local function SuperImmune(player, playerdata)
     if zombieInfection <= 0 then
         return
     end
+    if playerdata.SuperImmuneActive then
+        return
+    end
 
     if isClient() then
         local args = { zombie_fever = 100, zombie_infection = 0, clear_wounds = true }
@@ -3026,6 +3029,8 @@ local function SuperImmune(player, playerdata)
         bodyDamage:setInfected(false)
         bodyDamage:setInfectionMortalityDuration(-1)
         bodyDamage:setInfectionTime(-1)
+        bodyDamage:setInfectionLevel(0)
+        bodyDamage:setInfectionGrowthRate(0)
 
         local parts = bodyDamage:getBodyParts()
         for i = 0, parts:size() - 1 do
@@ -3198,6 +3203,14 @@ local function SuperImmuneRecoveryProcess(player, playerdata)
             playerdata.SuperImmuneLethal = false
             playerdata.SuperImmuneTextSaid = false
             playerdata.SuperImmuneFeverNotified = false
+
+            if isClient() then
+                sendClientCommand(player, "ToadTraits", "UpdateStats", { zombie_fever = 0, zombie_infection = 0, sickness = 0 })
+            else
+                stats:set(CharacterStat.ZOMBIE_FEVER, 0)
+                stats:set(CharacterStat.ZOMBIE_INFECTION, 0)
+                stats:set(CharacterStat.SICKNESS, 0)
+            end
         end
 
         if
