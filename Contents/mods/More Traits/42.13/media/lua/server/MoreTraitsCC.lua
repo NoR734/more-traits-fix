@@ -218,10 +218,10 @@ local function ProcessBodyPartMechanics(player, args)
                     fitness:removeStiffnessValue(bodyPartString)
                 end
             end
-            if args.partAdd ~= nil then
+            if args.partHealthAdd ~= nil then
                 bodyPart:AddHealth(args.partHealthAdd)
             end
-            if args.partReduce ~= nil then
+            if args.partHealthReduce ~= nil then
                 bodyPart:ReduceHealth(args.partHealthReduce)
             end
             if args.unwaveringStats ~= nil then
@@ -252,7 +252,7 @@ end
 
 local FastGimpVector = Vector2.new(0, 0)
 local function ProcessFastGimp(player, args)
-    if not args.xSpeed and args.ySpeed then return end
+    if args.xSpeed == nil or args.ySpeed == nil then return end
     FastGimpVector:setX(args.xSpeed)
     FastGimpVector:setY(args.ySpeed)
     player:Move(FastGimpVector)
@@ -378,7 +378,8 @@ local function ProcessProwessGuns(player, args)
 
     local currentCapacity = primaryWeapon:getCurrentAmmoCount()
     primaryWeapon:setCurrentAmmoCount(currentCapacity + 1);
-    sendAddItemToContainer(primaryWeapon:getContainer(), player)
+    primaryWeapon:transmitModData()
+    primaryWeapon:transmitItemStats()
 end
 
 local function onClientCommands(module, command, player, args)
