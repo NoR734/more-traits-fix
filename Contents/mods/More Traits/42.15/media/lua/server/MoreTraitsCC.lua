@@ -218,10 +218,10 @@ local function ProcessBodyPartMechanics(player, args)
                     fitness:removeStiffnessValue(bodyPartString)
                 end
             end
-            if args.partAdd ~= nil then
+            if args.partHealthAdd ~= nil then
                 bodyPart:AddHealth(args.partHealthAdd)
             end
-            if args.partReduce ~= nil then
+            if args.partHealthReduce ~= nil then
                 bodyPart:ReduceHealth(args.partHealthReduce)
             end
             if args.unwaveringStats ~= nil then
@@ -252,12 +252,12 @@ end
 
 local FastGimpVector = Vector2.new(0, 0)
 local function ProcessFastGimp(player, args)
-    if not args.xSpeed and args.ySpeed then return end
+    if args.xSpeed == nil or args.ySpeed == nil then return end
     FastGimpVector:setX(args.xSpeed)
     FastGimpVector:setY(args.ySpeed)
     if player.moveUnmodded then
-        player:moveUnmodded(FastGimpVector)
-    else
+        player:moveUnmodded(FastGimpVector:getX(), FastGimpVector:getY())
+    elseif player.Move then
         player:Move(FastGimpVector)
     end
 end
@@ -303,7 +303,15 @@ end
 
 local function ProcessEvasive(player, args)
     local bodyDamage = player:getBodyDamage()
-    local bodyPart = bodyDamage:getBodyPart(BodyPartType.FromIndex(args.partIndex))
+    local partIndex = args.partIndex
+    if partIndex == nil then
+        partIndex = args.bodyPart
+    end
+    if partIndex == nil then
+        return
+    end
+
+    local bodyPart = bodyDamage:getBodyPart(BodyPartType.FromIndex(partIndex))
     
     if not bodyPart then return end;
 
@@ -312,6 +320,7 @@ local function ProcessEvasive(player, args)
         bodyDamage:setInfected(false)
         bodyDamage:setInfectionMortalityDuration(-1)
         bodyDamage:setInfectionTime(-1)
+        bodyDamage:setInfectionLevel(0)
         bodyDamage:setInfectionGrowthRate(0)
     end
     
@@ -331,7 +340,20 @@ local function ProcessEvasive(player, args)
     end
 
     if bodyPart:bitten() then
-        bodyPart:setBitten(false, false)
+        if bodyPart.SetBitten then
+            bodyPart:SetBitten(false, false)
+        elseif bodyPart.setBitten then
+            bodyPart:setBitten(false, false)
+        end
+        if bodyPart.setBiteTime then
+            bodyPart:setBiteTime(0)
+        end
+        if bodyPart.setInfectedWound then
+            bodyPart:setInfectedWound(false)
+        end
+        if bodyPart.setWoundInfectionLevel then
+            bodyPart:setWoundInfectionLevel(0)
+        end
         bodyPart:setHealth(100.0)
     end
 end
@@ -382,7 +404,8 @@ local function ProcessProwessGuns(player, args)
 
     local currentCapacity = primaryWeapon:getCurrentAmmoCount()
     primaryWeapon:setCurrentAmmoCount(currentCapacity + 1);
-    sendAddItemToContainer(primaryWeapon:getContainer(), player)
+    primaryWeapon:transmitModData()
+    primaryWeapon:transmitItemStats()
 end
 
 local function onClientCommands(module, command, player, args)

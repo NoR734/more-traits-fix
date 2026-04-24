@@ -776,7 +776,7 @@ local function MTPlayerHit(player, _, __)
 
                         if isClient() then
                             local args = {
-                                bodyPart = bodyPart,
+                                partIndex = i,
                                 wasInfectedBefore = wasInfectedBefore,
                                 isInfected = isInfected,
                             }
@@ -787,6 +787,7 @@ local function MTPlayerHit(player, _, __)
                                 bodyDamage:setInfected(false)
                                 bodyDamage:setInfectionMortalityDuration(-1)
                                 bodyDamage:setInfectionTime(-1)
+                                bodyDamage:setInfectionLevel(0)
                                 bodyDamage:setInfectionGrowthRate(0)
                             end
 
@@ -806,7 +807,20 @@ local function MTPlayerHit(player, _, __)
                             end
 
                             if bodyPart:bitten() then
-                                bodyPart:SetBitten(false, false)
+                                if bodyPart.SetBitten then
+                                    bodyPart:SetBitten(false, false)
+                                elseif bodyPart.setBitten then
+                                    bodyPart:setBitten(false, false)
+                                end
+                                if bodyPart.setBiteTime then
+                                    bodyPart:setBiteTime(0)
+                                end
+                                if bodyPart.setInfectedWound then
+                                    bodyPart:setInfectedWound(false)
+                                end
+                                if bodyPart.setWoundInfectionLevel then
+                                    bodyPart:setWoundInfectionLevel(0)
+                                end
                                 bodyPart:SetHealth(100.0)
                             end
                         end
@@ -2838,8 +2852,8 @@ local function MT_FastGimpTraits(player)
     end
 
     if player.moveUnmodded then
-        player:moveUnmodded(FastGimpVector)
-    else
+        player:moveUnmodded(FastGimpVector:getX(), FastGimpVector:getY())
+    elseif player.Move then
         player:Move(FastGimpVector)
     end
 end
@@ -4113,6 +4127,10 @@ local function GymGoerUpdate(player, playerdata)
     end
 
     local fitness = player:getFitness()
+    if not fitness then
+        return
+    end
+
     if not playerdata.GymGoerStiffnessList then
         playerdata.GymGoerStiffnessList = {
             fitness:getCurrentExeStiffnessInc("arms"),
@@ -4149,8 +4167,8 @@ local function GymGoerUpdate(player, playerdata)
 
     local stiffnessList = playerdata.GymGoerStiffnessList
     for i, group in ipairs(muscleGroups) do
-        local currentStiffness = fitness:getCurrentExeStiffnessInc(group.name)
-        local recordedPeak = stiffnessList[i]
+        local currentStiffness = fitness:getCurrentExeStiffnessInc(group.name) or 0
+        local recordedPeak = tonumber(stiffnessList[i]) or 0
 
         if recordedPeak > 0 and (currentStiffness == 0 or currentStiffness < (recordedPeak / 2)) then
             if isClient() then
@@ -4161,7 +4179,7 @@ local function GymGoerUpdate(player, playerdata)
                 sendClientCommand(
                         player,
                         "ToadTraits",
-                        "ProcessBodyPartMechanics",
+                        "BodyPartMechanics",
                         { bodyParts = bodyParts, partStiffness = 0, clearStrain = true }
                 )
             else
