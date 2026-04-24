@@ -212,10 +212,14 @@ local function ProcessBodyPartMechanics(player, args)
             end
             if args.partStiffness ~= nil then
                 bodyPart:setStiffness(args.partStiffness)
-                if args.clearStrain then
+                if args.clearStrain and fitness then
                     -- Convert index back to string to clear fitness UI/stats
                     local bodyPartString = BodyPartType.ToString(bodyPartType)
-                    fitness:removeStiffnessValue(bodyPartString)
+                    if fitness.removeStiffnessValue then
+                        fitness:removeStiffnessValue(bodyPartString)
+                    elseif fitness.removeStiffness then
+                        fitness:removeStiffness(bodyPartString)
+                    end
                 end
             end
             if args.partHealthAdd ~= nil then

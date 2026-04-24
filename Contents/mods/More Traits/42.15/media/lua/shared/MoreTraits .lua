@@ -4131,12 +4131,34 @@ local function GymGoerUpdate(player, playerdata)
         return
     end
 
+    local function getCurrentGymStiffness(groupName)
+        if fitness.getCurrentExeStiffnessInc then
+            return fitness:getCurrentExeStiffnessInc(groupName) or 0
+        end
+        if fitness.getCurrentStiffnessInc then
+            return fitness:getCurrentStiffnessInc(groupName) or 0
+        end
+        return 0
+    end
+
+    local function clearFitnessStiffness(partType)
+        if not fitness then
+            return
+        end
+        local bodyPartString = BodyPartType.ToString(partType)
+        if fitness.removeStiffnessValue then
+            fitness:removeStiffnessValue(bodyPartString)
+        elseif fitness.removeStiffness then
+            fitness:removeStiffness(bodyPartString)
+        end
+    end
+
     if not playerdata.GymGoerStiffnessList then
         playerdata.GymGoerStiffnessList = {
-            fitness:getCurrentExeStiffnessInc("arms"),
-            fitness:getCurrentExeStiffnessInc("legs"),
-            fitness:getCurrentExeStiffnessInc("chest"),
-            fitness:getCurrentExeStiffnessInc("abs"),
+            getCurrentGymStiffness("arms"),
+            getCurrentGymStiffness("legs"),
+            getCurrentGymStiffness("chest"),
+            getCurrentGymStiffness("abs"),
         }
     end
 
@@ -4167,14 +4189,14 @@ local function GymGoerUpdate(player, playerdata)
 
     local stiffnessList = playerdata.GymGoerStiffnessList
     for i, group in ipairs(muscleGroups) do
-        local currentStiffness = fitness:getCurrentExeStiffnessInc(group.name) or 0
+        local currentStiffness = getCurrentGymStiffness(group.name)
         local recordedPeak = tonumber(stiffnessList[i]) or 0
 
         if recordedPeak > 0 and (currentStiffness == 0 or currentStiffness < (recordedPeak / 2)) then
             if isClient() then
                 local bodyParts = {}
                 for _, partType in ipairs(group.parts) do
-                    table.insert(bodyParts, partType:getIndex())
+                    table.insert(bodyParts, BodyPartType.ToIndex(partType))
                 end
                 sendClientCommand(
                         player,
@@ -4185,11 +4207,10 @@ local function GymGoerUpdate(player, playerdata)
             else
                 for _, partType in ipairs(group.parts) do
                     local part = player:getBodyDamage():getBodyPart(partType)
-                    if not part then
-                        return
+                    if part then
+                        part:setStiffness(0)
                     end
-                    part:setStiffness(0)
-                    fitness:removeStiffnessValue(BodyPartType.ToString(partType))
+                    clearFitnessStiffness(partType)
                 end
             end
             stiffnessList[i] = 0
