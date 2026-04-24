@@ -776,7 +776,7 @@ local function MTPlayerHit(player, _, __)
 
                         if isClient() then
                             local args = {
-                                bodyPart = bodyPart,
+                                partIndex = i,
                                 wasInfectedBefore = wasInfectedBefore,
                                 isInfected = isInfected,
                             }
@@ -787,6 +787,7 @@ local function MTPlayerHit(player, _, __)
                                 bodyDamage:setInfected(false)
                                 bodyDamage:setInfectionMortalityDuration(-1)
                                 bodyDamage:setInfectionTime(-1)
+                                bodyDamage:setInfectionLevel(0)
                                 bodyDamage:setInfectionGrowthRate(0)
                             end
 
@@ -806,7 +807,20 @@ local function MTPlayerHit(player, _, __)
                             end
 
                             if bodyPart:bitten() then
-                                bodyPart:SetBitten(false, false)
+                                if bodyPart.SetBitten then
+                                    bodyPart:SetBitten(false, false)
+                                elseif bodyPart.setBitten then
+                                    bodyPart:setBitten(false, false)
+                                end
+                                if bodyPart.setBiteTime then
+                                    bodyPart:setBiteTime(0)
+                                end
+                                if bodyPart.setInfectedWound then
+                                    bodyPart:setInfectedWound(false)
+                                end
+                                if bodyPart.setWoundInfectionLevel then
+                                    bodyPart:setWoundInfectionLevel(0)
+                                end
                                 bodyPart:SetHealth(100.0)
                             end
                         end

@@ -303,7 +303,15 @@ end
 
 local function ProcessEvasive(player, args)
     local bodyDamage = player:getBodyDamage()
-    local bodyPart = bodyDamage:getBodyPart(BodyPartType.FromIndex(args.partIndex))
+    local partIndex = args.partIndex
+    if partIndex == nil then
+        partIndex = args.bodyPart
+    end
+    if partIndex == nil then
+        return
+    end
+
+    local bodyPart = bodyDamage:getBodyPart(BodyPartType.FromIndex(partIndex))
     
     if not bodyPart then return end;
 
@@ -312,6 +320,7 @@ local function ProcessEvasive(player, args)
         bodyDamage:setInfected(false)
         bodyDamage:setInfectionMortalityDuration(-1)
         bodyDamage:setInfectionTime(-1)
+        bodyDamage:setInfectionLevel(0)
         bodyDamage:setInfectionGrowthRate(0)
     end
     
@@ -331,7 +340,20 @@ local function ProcessEvasive(player, args)
     end
 
     if bodyPart:bitten() then
-        bodyPart:setBitten(false, false)
+        if bodyPart.SetBitten then
+            bodyPart:SetBitten(false, false)
+        elseif bodyPart.setBitten then
+            bodyPart:setBitten(false, false)
+        end
+        if bodyPart.setBiteTime then
+            bodyPart:setBiteTime(0)
+        end
+        if bodyPart.setInfectedWound then
+            bodyPart:setInfectedWound(false)
+        end
+        if bodyPart.setWoundInfectionLevel then
+            bodyPart:setWoundInfectionLevel(0)
+        end
         bodyPart:setHealth(100.0)
     end
 end
