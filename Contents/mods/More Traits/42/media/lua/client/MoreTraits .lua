@@ -2602,22 +2602,25 @@ local function SuperImmuneRecoveryProcess()
                     player:Say("Time to recovery: " .. (Recovery * 1440 - TimeElapsed) .. " minutes, or " .. (Recovery * 24 - math.floor(TimeElapsed / 60)) .. " hours");
                 end
             else
-                if Illness > 0 or Illness ~= 0 then
-                    --Recover from illness completely over-time once recovery time ends.
-                    if player:HasTrait("FastHealer") then
-                        Illness = Illness - (1.5 / 60); --0.7 to 2.5 days
-                    elseif player:HasTrait("SlowHealer") then
-                        Illness = Illness - (0.75 / 60); --1.4 to 5 days
-                    else
-                        Illness = Illness - (1 / 60); --1 to 3.7 days
-                    end
-                    player:getBodyDamage():setFakeInfectionLevel(Illness);
-                    playerdata.SuperImmuneInfections = 0;
-                else
-                    --Once illness fully recovers
-                    if MT_Config:getOption("SuperImmuneAnnounce"):getValue() == true then
-                        HaloTextHelper.addTextWithArrow(player, getText("UI_trait_fullheal"), true, HaloTextHelper.getColorGreen());
-                    end
+				if Illness > 0 then
+					--Recover from illness completely over-time once recovery time ends.
+					if player:HasTrait("FastHealer") then
+						Illness = Illness - (1.5 / 60); --0.7 to 2.5 days
+					elseif player:HasTrait("SlowHealer") then
+						Illness = Illness - (0.75 / 60); --1.4 to 5 days
+					else
+						Illness = Illness - (1 / 60); --1 to 3.7 days
+					end
+					if Illness < 0 then
+						Illness = 0;
+					end
+					player:getBodyDamage():setFakeInfectionLevel(Illness);
+					playerdata.SuperImmuneInfections = 0;
+				else
+					--Once illness fully recovers
+					if MT_Config:getOption("SuperImmuneAnnounce"):getValue() == true then
+						HaloTextHelper.addTextWithArrow(player, getText("UI_trait_superimmunefullheal"), true, HaloTextHelper.getColorGreen());
+					end
                     playerdata.SuperImmuneTextSaid = false;
                     playerdata.SuperImmuneActive = false;
                     playerdata.SuperImmuneMinutesPassed = 0;
@@ -4046,7 +4049,7 @@ end
 local function HungerCheck(player)
     local player = getPlayer();
     local playerdata = player:getModData();
-    if player:HasTrait("SuperImmune") and player:getModData().SuperImmuneActive == true then
+	if player:HasTrait("superimmune") and player:getModData().SuperImmuneActive == true then
         local stats = player:getStats();
         local hunger = stats:getHunger();
         local SuperImmuneMinutesWellFed = player:getModData().SuperImmuneMinutesWellFed;
