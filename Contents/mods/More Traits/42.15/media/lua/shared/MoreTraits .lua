@@ -792,15 +792,7 @@ local function MTPlayerHit(player, _, __)
                         else
                             if bodyPart:IsInfected() and not wasInfectedBefore and isInfected then
                                 bodyPart:SetInfected(false)
-<<<<<<< codex/review-mod-for-build-42.17-6rpwya
                                 MT_ResetInfectionState(bodyDamage)
-=======
-                                bodyDamage:setInfected(false)
-                                bodyDamage:setInfectionMortalityDuration(-1)
-                                bodyDamage:setInfectionTime(-1)
-                                bodyDamage:setInfectionLevel(0)
-                                bodyDamage:setInfectionGrowthRate(0)
->>>>>>> main
                             end
 
                             if bodyPart:bleeding() then
@@ -3038,15 +3030,7 @@ local function SuperImmune(player, playerdata)
         -- We set the Fever here to 100 for the Health Loss and simulate fighting the infection
         stats:set(CharacterStat.ZOMBIE_FEVER, 100)
         stats:set(CharacterStat.ZOMBIE_INFECTION, 0)
-<<<<<<< codex/review-mod-for-build-42.17-6rpwya
         MT_ResetInfectionState(bodyDamage)
-=======
-        bodyDamage:setInfected(false)
-        bodyDamage:setInfectionMortalityDuration(-1)
-        bodyDamage:setInfectionTime(-1)
-        bodyDamage:setInfectionLevel(0)
-        bodyDamage:setInfectionGrowthRate(0)
->>>>>>> main
 
         local parts = bodyDamage:getBodyParts()
         for i = 0, parts:size() - 1 do
