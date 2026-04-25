@@ -2449,7 +2449,7 @@ local function MT_FastGimpTraits(player)
 
     local timeMult = getGameTime():getTrueMultiplier()
     local pathfindingBehaviour = player:getPathFindBehavior2()
-    local isPathfinding = pathfindingBehaviour:isMovingUsingPathFind()
+    local isPathfinding = pathfindingBehaviour and pathfindingBehaviour:isMovingUsingPathFind() or false
 
     -- Disable movement adjustment if time multiplier is over 1.1
     if isPathfinding and timeMult > 1.1 then return end
