@@ -3,7 +3,11 @@ local function MT_QuickSlowTraitCheck(self, baseTime)
     if type(self) ~= "table" or not self.character then return baseTime end
     if self.character:isTimedActionInstant() then return 1 end
 
-    print(baseTime)
+    local originalBaseTime = baseTime
+
+    if self.__mtQuickSlowWorkerCacheDuration and self.__mtQuickSlowWorkerCacheBase == baseTime then
+        return self.__mtQuickSlowWorkerCacheDuration
+    end
 
     local isQuick = self.character:hasTrait(ToadTraitsRegistries.quickworker)
     local isSlow = self.character:hasTrait(ToadTraitsRegistries.slowworker)
@@ -54,10 +58,11 @@ local function MT_QuickSlowTraitCheck(self, baseTime)
         baseTime = baseTime + (baseTime * finalPenalty)
     end
     
-    print(baseTime)
-
     -- Never want to drop below 1 frame, unlikely to happen but better to guard.
-    return math.max(1, baseTime)
+    local finalTime = math.max(1, baseTime)
+    self.__mtQuickSlowWorkerCacheBase = originalBaseTime
+    self.__mtQuickSlowWorkerCacheDuration = finalTime
+    return finalTime
 end
 
 -- Shared Functions
