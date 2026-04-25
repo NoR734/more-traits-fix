@@ -2202,6 +2202,8 @@ local function bouncerupdate(player, playerdata)
     end
 end
 
+local applyTraitDamage
+
 local function unwavering(actor, target, weapon, damage)
     if not actor or not target or not weapon then
         return
@@ -2237,18 +2239,7 @@ local function unwavering(actor, target, weapon, damage)
     end
 
     local extraDamage = damage * extraDamageMult
-    local targetData = target:getModData()
-    if not targetData then
-        return
-    end
-    target:setHealth(target:getHealth() - extraDamage)
-    if target:getHealth() <= 0 then
-        if not targetData.TraitKillProcessed then
-            targetData.TraitKillProcessed = true
-            target:Kill(player)
-            player:setZombieKills(player:getZombieKills() + 1)
-        end
-    end
+    applyTraitDamage(target, extraDamage)
 end
 
 local function martial(actor, target, weapon, damage)
@@ -2315,19 +2306,7 @@ local function martial(actor, target, weapon, damage)
             )
         end
 
-        local targetData = target:getModData()
-        if not targetData then
-            return
-        end
-
-        target:setHealth(target:getHealth() - martialDamage)
-        if target:getHealth() <= 0 then
-            if not targetData.TraitKillProcessed then
-                targetData.TraitKillProcessed = true
-                target:Kill(player)
-                player:setZombieKills(player:getZombieKills() + 1)
-            end
-        end
+        applyTraitDamage(target, martialDamage)
 
         local newEndurance = math.max(0, endurance - 0.002)
         if isClient() then
@@ -2337,6 +2316,19 @@ local function martial(actor, target, weapon, damage)
             stats:set(CharacterStat.ENDURANCE, newEndurance)
         end
         MT_AddXP(player, Perks.SmallBlunt, martialDamage * 2 * blunt)
+    end
+end
+
+applyTraitDamage = function(target, damageAmount)
+    local targetData = target:getModData()
+    if not targetData then
+        return
+    end
+
+    target:setHealth(target:getHealth() - damageAmount)
+    if target:getHealth() <= 0 and not targetData.TraitKillProcessed then
+        targetData.TraitKillProcessed = true
+        target:setHealth(0)
     end
 end
 
@@ -2392,18 +2384,7 @@ local function actionhero(actor, target, weapon, damage)
     end
 
     local extraDamage = (damage * multiplier) * 0.1
-    local targetData = target:getModData()
-    if not targetData then
-        return
-    end
-    target:setHealth(target:getHealth() - extraDamage)
-    if target:getHealth() <= 0 then
-        if not targetData.TraitKillProcessed then
-            targetData.TraitKillProcessed = true
-            target:Kill(player)
-            player:setZombieKills(player:getZombieKills() + 1)
-        end
-    end
+    applyTraitDamage(target, extraDamage)
 end
 
 -- Melee Traits (ProBlade, ProBlunt, ProSpear, Tavern Brawler)
@@ -2540,18 +2521,7 @@ local function MT_MeleeTraits(actor, target, weapon, damage)
     end
 
     if totalDamage > 0 then
-        local targetData = target:getModData()
-        if not targetData then
-            return
-        end
-        target:setHealth(target:getHealth() - totalDamage)
-        if target:getHealth() <= 0 then
-            if not targetData.TraitKillProcessed then
-                targetData.TraitKillProcessed = true
-                target:Kill(player)
-                player:setZombieKills(player:getZombieKills() + 1)
-            end
-        end
+        applyTraitDamage(target, totalDamage)
     end
 
     weaponData.iLastWeaponCond = weapon:getCondition()
