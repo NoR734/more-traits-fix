@@ -255,6 +255,10 @@ local function ProcessBodyPartMechanics(player, args)
             end
         end
     end
+    
+    if args.overallHealthFloor ~= nil and bodyDamage:getOverallBodyHealth() < args.overallHealthFloor then
+        bodyDamage:setOverallBodyHealth(args.overallHealthFloor)
+    end
 end
 
 local function ProcessUpdateWeight(player, args)
