@@ -29,6 +29,7 @@ internalTick = 0
 luckimpact = 1.0
 MTModVersion = 42.15 --REMEMBER TO MANUALLY INCREASE
 isMoodleFrameWorkEnabled = false; --getActivatedMods():contains("MoodleFramework")
+local MT_DEBUG_SUPERIMMUNE_FAKE_INFECTION_MP = false
 
 local playerDefaultData = {
     MTModVersion = MTModVersion,
@@ -3312,60 +3313,102 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
     end
 
     local targetHealth = math.max(maxHealth, 100 - illness) -- Prevent it dropping below maxHealth unless Lethal
+    local isMP = isClient() and isMultiplayer()
+    local nonLethalFloor = 1.0
+    local context = isServer() and "server" or "client"
+
+    local function debugLog(message)
+        if MT_DEBUG_SUPERIMMUNE_FAKE_INFECTION_MP then
+            print("[MoreTraits][SuperImmuneFakeInfection][" .. context .. "] " .. tostring(message))
+        end
+    end
 
     if currentHealth >= targetHealth or currentHealth > maxHealth then
-        local parts = bodyDamage:getBodyParts()
-        -- Increased damage amounts because this only fires once per in-game minute
-        local damageAmount = 1.0
-
-        if illness >= 50 then
-            damageAmount = 3.0
-        elseif illness >= 25 then
-            damageAmount = 1.5
-        end
-
-        -- If the infection is lethal, they should take more damage and die
-        if playerdata.SuperImmuneLethal then
-            damageAmount = damageAmount + 10.0
+        if isMP then
+            debugLog(
+                    "Skipping fake-infection damage in MP on client. HP="
+                            .. tostring(currentHealth)
+                            .. " lethal="
+                            .. tostring(playerdata.SuperImmuneLethal)
+            )
         else
-            -- Keep Super Immune non-lethal from infection damage itself.
-            -- External damage sources (falls, bleeding, combat, etc.) can still kill as normal.
-            local nonLethalFloor = 1.0
-            if currentHealth <= nonLethalFloor then
-                damageAmount = 0
+            local parts = bodyDamage:getBodyParts()
+            -- Increased damage amounts because this only fires once per in-game minute
+            local rawDamageAmount = 1.0
+            local damageAmount = rawDamageAmount
+
+            if illness >= 50 then
+                rawDamageAmount = 3.0
+            elseif illness >= 25 then
+                rawDamageAmount = 1.5
+            end
+            damageAmount = rawDamageAmount
+
+            local hpBeforeDamage = bodyDamage:getOverallBodyHealth()
+
+            -- If the infection is lethal, they should take more damage and die
+            if playerdata.SuperImmuneLethal then
+                damageAmount = damageAmount + 10.0
             else
-                damageAmount = math.min(damageAmount, currentHealth - nonLethalFloor)
+                -- Keep Super Immune non-lethal from infection damage itself.
+                -- External damage sources (falls, bleeding, combat, etc.) can still kill as normal.
+                if currentHealth <= nonLethalFloor then
+                    damageAmount = 0
+                else
+                    damageAmount = math.min(damageAmount, currentHealth - nonLethalFloor)
+                end
             end
-        end
 
-        --Rapidly lose health if it is too high, to prevent sleep abuse in order to stay healthy
-        if illness >= 50 and currentHealth > maxHealth + 5 then
-            damageAmount = damageAmount + 5.0
-        end
+            --Rapidly lose health if it is too high, to prevent sleep abuse in order to stay healthy
+            if illness >= 50 and currentHealth > maxHealth + 5 then
+                damageAmount = damageAmount + 5.0
+            end
 
-        if not playerdata.SuperImmuneLethal then
-            local nonLethalFloor = 1.0
-            -- Final clamp is required after sleep-abuse pressure, otherwise sleeping regen can bypass the non-lethal floor.
-            damageAmount = math.min(damageAmount, math.max(0, currentHealth - nonLethalFloor))
-        end
-
-        local randomBodyPart = parts:get(ZombRand(0, parts:size() - 1))
-
-        if isClient() then
-            local bodyPartIndex = BodyPartType.ToIndex(randomBodyPart:getType())
-            local args = { bodyPart = bodyPartIndex, partDamage = damageAmount }
             if not playerdata.SuperImmuneLethal then
-                -- Server must enforce this too, because body-part damage conversion can overshoot overall HP loss while sleeping.
-                args.overallHealthFloor = 1.0
+                -- Final clamp is required after sleep-abuse pressure, otherwise sleeping regen can bypass the non-lethal floor.
+                damageAmount = math.min(damageAmount, math.max(0, currentHealth - nonLethalFloor))
             end
-            sendClientCommand(player, "ToadTraits", "BodyPartMechanics", args)
-        else
-            randomBodyPart:AddDamage(damageAmount)
-            if not playerdata.SuperImmuneLethal and bodyDamage:getOverallBodyHealth() < 1.0 then
-                -- Keep fake-infection pressure non-lethal even after body-part damage is applied.
-                bodyDamage:setOverallBodyHealth(1.0)
+
+            local randomBodyPart = parts:get(ZombRand(0, parts:size() - 1))
+
+            debugLog(
+                    "Applying fake-infection damage. HP(before)="
+                            .. tostring(hpBeforeDamage)
+                            .. " rawDamage="
+                            .. tostring(rawDamageAmount)
+                            .. " finalDamage="
+                            .. tostring(damageAmount)
+                            .. " lethal="
+                            .. tostring(playerdata.SuperImmuneLethal)
+            )
+
+            if isClient() then
+                local bodyPartIndex = BodyPartType.ToIndex(randomBodyPart:getType())
+                local args = { bodyPart = bodyPartIndex, partDamage = damageAmount }
+                if not playerdata.SuperImmuneLethal then
+                    -- Server must enforce this too, because body-part damage conversion can overshoot overall HP loss while sleeping.
+                    args.overallHealthFloor = 1.0
+                end
+                sendClientCommand(player, "ToadTraits", "BodyPartMechanics", args)
+            else
+                if not playerdata.SuperImmuneLethal then
+                    -- Server-side pre-apply floor guarantee for non-lethal mode.
+                    bodyDamage:setOverallBodyHealth(math.max(nonLethalFloor, bodyDamage:getOverallBodyHealth()))
+                end
+                randomBodyPart:AddDamage(damageAmount)
+                if not playerdata.SuperImmuneLethal and bodyDamage:getOverallBodyHealth() < 1.0 then
+                    -- Keep fake-infection pressure non-lethal even after body-part damage is applied.
+                    bodyDamage:setOverallBodyHealth(1.0)
+                end
+                debugLog("HP(after part damage)=" .. tostring(bodyDamage:getOverallBodyHealth()))
             end
         end
+    end
+
+    if not playerdata.SuperImmuneLethal and bodyDamage:getOverallBodyHealth() < nonLethalFloor then
+        -- End-of-function floor guarantee for non-lethal mode.
+        bodyDamage:setOverallBodyHealth(nonLethalFloor)
+        debugLog("Applied end-of-function floor clamp to " .. tostring(nonLethalFloor))
     end
 
     if illness >= 10 then
