@@ -3323,19 +3323,47 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
         end
     end
 
-    if currentHealth >= targetHealth or currentHealth > maxHealth then
+    local shouldApplyDamage = false
+    local skipReason = nil
+    if playerdata.SuperImmuneLethal then
+        -- Keep legacy lethal gating behavior unchanged.
+        shouldApplyDamage = currentHealth >= targetHealth or currentHealth > maxHealth
+        if not shouldApplyDamage then
+            skipReason = "legacy_lethal_target_gate"
+        end
+    else
+        -- Non-lethal fake-infection pressure must be driven by illness state,
+        -- not by current-vs-target HP comparisons.
+        shouldApplyDamage = illness >= 10
+        if not shouldApplyDamage then
+            skipReason = "illness_below_pressure_threshold"
+        end
+    end
+
+    local damageApplied = false
+    local rawDamageAmount = 0
+    local damageAmount = 0
+    local hpBeforeDamage = bodyDamage:getOverallBodyHealth()
+    local hpAfterDamage = hpBeforeDamage
+
+    if shouldApplyDamage then
         if isMP then
+            skipReason = "mp_client_server_authority"
             debugLog(
-                    "Skipping fake-infection damage in MP on client. HP="
-                            .. tostring(currentHealth)
-                            .. " lethal="
-                            .. tostring(playerdata.SuperImmuneLethal)
+                    "tick=" .. context
+                            .. " action=skip reason=" .. tostring(skipReason)
+                            .. " illness=" .. tostring(illness)
+                            .. " hp=" .. tostring(currentHealth)
+                            .. " target=" .. tostring(targetHealth)
+                            .. " damageRaw=" .. tostring(rawDamageAmount)
+                            .. " damageFinal=" .. tostring(damageAmount)
+                            .. " lethal=" .. tostring(playerdata.SuperImmuneLethal)
             )
         else
             local parts = bodyDamage:getBodyParts()
             -- Increased damage amounts because this only fires once per in-game minute
-            local rawDamageAmount = 1.0
-            local damageAmount = rawDamageAmount
+            rawDamageAmount = 1.0
+            damageAmount = rawDamageAmount
 
             if illness >= 50 then
                 rawDamageAmount = 3.0
@@ -3344,19 +3372,12 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
             end
             damageAmount = rawDamageAmount
 
-            local hpBeforeDamage = bodyDamage:getOverallBodyHealth()
-
             -- If the infection is lethal, they should take more damage and die
             if playerdata.SuperImmuneLethal then
                 damageAmount = damageAmount + 10.0
             else
-                -- Keep Super Immune non-lethal from infection damage itself.
-                -- External damage sources (falls, bleeding, combat, etc.) can still kill as normal.
-                if currentHealth <= nonLethalFloor then
-                    damageAmount = 0
-                else
-                    damageAmount = math.min(damageAmount, currentHealth - nonLethalFloor)
-                end
+                -- Non-lethal floor constrains minimum HP but does not disable pressure above floor.
+                damageAmount = math.min(damageAmount, math.max(0, currentHealth - nonLethalFloor))
             end
 
             --Rapidly lose health if it is too high, to prevent sleep abuse in order to stay healthy
@@ -3372,14 +3393,15 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
             local randomBodyPart = parts:get(ZombRand(0, parts:size() - 1))
 
             debugLog(
-                    "Applying fake-infection damage. HP(before)="
-                            .. tostring(hpBeforeDamage)
-                            .. " rawDamage="
-                            .. tostring(rawDamageAmount)
-                            .. " finalDamage="
-                            .. tostring(damageAmount)
-                            .. " lethal="
-                            .. tostring(playerdata.SuperImmuneLethal)
+                    "tick=" .. context
+                            .. " action=apply reason=infection_pressure"
+                            .. " illness=" .. tostring(illness)
+                            .. " hp=" .. tostring(currentHealth)
+                            .. " target=" .. tostring(targetHealth)
+                            .. " damageRaw=" .. tostring(rawDamageAmount)
+                            .. " damageFinal=" .. tostring(damageAmount)
+                            .. " lethal=" .. tostring(playerdata.SuperImmuneLethal)
+                            .. " hpBefore=" .. tostring(hpBeforeDamage)
             )
 
             if isClient() then
@@ -3400,15 +3422,48 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
                     -- Keep fake-infection pressure non-lethal even after body-part damage is applied.
                     bodyDamage:setOverallBodyHealth(1.0)
                 end
-                debugLog("HP(after part damage)=" .. tostring(bodyDamage:getOverallBodyHealth()))
+                hpAfterDamage = bodyDamage:getOverallBodyHealth()
+                damageApplied = true
+                debugLog(
+                        "tick=" .. context
+                                .. " action=post_apply"
+                                .. " hpAfterApply=" .. tostring(hpAfterDamage)
+                                .. " damageFinal=" .. tostring(damageAmount)
+                                .. " lethal=" .. tostring(playerdata.SuperImmuneLethal)
+                )
             end
         end
+    else
+        debugLog(
+                "tick=" .. context
+                        .. " action=skip reason=" .. tostring(skipReason)
+                        .. " illness=" .. tostring(illness)
+                        .. " hp=" .. tostring(currentHealth)
+                        .. " target=" .. tostring(targetHealth)
+                        .. " damageRaw=" .. tostring(rawDamageAmount)
+                        .. " damageFinal=" .. tostring(damageAmount)
+                        .. " lethal=" .. tostring(playerdata.SuperImmuneLethal)
+        )
     end
 
     if not playerdata.SuperImmuneLethal and bodyDamage:getOverallBodyHealth() < nonLethalFloor then
         -- End-of-function floor guarantee for non-lethal mode.
         bodyDamage:setOverallBodyHealth(nonLethalFloor)
-        debugLog("Applied end-of-function floor clamp to " .. tostring(nonLethalFloor))
+        debugLog(
+                "tick=" .. context
+                        .. " action=floor_clamp"
+                        .. " hpAfterClamp=" .. tostring(bodyDamage:getOverallBodyHealth())
+                        .. " floor=" .. tostring(nonLethalFloor)
+                        .. " damageApplied=" .. tostring(damageApplied)
+        )
+    else
+        debugLog(
+                "tick=" .. context
+                        .. " action=final_state"
+                        .. " hpAfterFinal=" .. tostring(bodyDamage:getOverallBodyHealth())
+                        .. " hpAfterApply=" .. tostring(hpAfterDamage)
+                        .. " damageApplied=" .. tostring(damageApplied)
+        )
     end
 
     if illness >= 10 then
