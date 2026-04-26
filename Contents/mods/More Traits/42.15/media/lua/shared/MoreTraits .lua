@@ -3300,6 +3300,17 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
     local bodyDamage = player:getBodyDamage()
     local currentHealth = bodyDamage:getOverallBodyHealth()
 
+    -- In non-lethal mode, keep clearing latent zombie infection every tick so
+    -- the character does not die from internal zombie-virus state.
+    if not playerdata.SuperImmuneLethal then
+        if isClient() then
+            sendClientCommand(player, "ToadTraits", "UpdateStats", { zombie_infection = 0 })
+        else
+            stats:set(CharacterStat.ZOMBIE_INFECTION, 0)
+            MT_ResetInfectionState(bodyDamage)
+        end
+    end
+
     local targetHealth = math.max(maxHealth, 100 - illness) -- Prevent it dropping below maxHealth unless Lethal
 
     if currentHealth >= targetHealth or currentHealth > maxHealth then
