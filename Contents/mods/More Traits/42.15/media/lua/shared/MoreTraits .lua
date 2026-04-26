@@ -2985,8 +2985,10 @@ local function SuperImmune(player, playerdata)
     local stats = player:getStats()
     local zombieInfection = stats:get(CharacterStat.ZOMBIE_INFECTION)
     local bodyDamage = player:getBodyDamage()
+    local hasBodyInfection = bodyDamage and bodyDamage:isInfected()
 
-    if zombieInfection <= 0 then
+    -- B42 MP can desync zombie infection stat on client, so also trust BodyDamage infection flag.
+    if zombieInfection <= 0 and not hasBodyInfection then
         return
     end
     if playerdata.SuperImmuneActive then
