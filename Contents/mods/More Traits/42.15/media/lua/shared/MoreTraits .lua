@@ -3292,7 +3292,7 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
     -- Keep Super Immune non-lethal unless weakness mode marked this run as lethal.
     -- Build 42.17 can apply extra health drain from fever/infection systems while sleeping,
     -- so we enforce the minimum floor explicitly instead of relying only on our own damage.
-    if not playerdata.SuperImmuneLethal and currentHealth < maxHealth then
+    if not playerdata.SuperImmuneLethal and player:isAsleep() and illness >= 50 and currentHealth < maxHealth then
         bodyDamage:setOverallBodyHealth(maxHealth)
         currentHealth = maxHealth
     end
