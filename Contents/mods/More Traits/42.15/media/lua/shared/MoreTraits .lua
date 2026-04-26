@@ -224,11 +224,12 @@ local function MT_HasZombieInfection(stats, bodyDamage)
     end
 
 	-- MP 42.17 can lag behind on infection timeline values after a zombie bite.
-    -- If the character is flagged infected and still has a bite wound, treat it as zombification.
+    -- If the character is flagged infected and still has an *active* bite wound,
+    -- treat it as zombification.
     local parts = bodyDamage:getBodyParts()
     for i = 0, parts:size() - 1 do
         local part = parts:get(i)
-        if part and part.bitten and part:bitten() then
+        if part and part.bitten and part:bitten() and part.HasInjury and part:HasInjury() then
             return true
         end
     end
@@ -3297,16 +3298,19 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
     end
 
     local bodyDamage = player:getBodyDamage()
-    local currentHealth = bodyDamage:getOverallBodyHealth()
 
-   -- Keep Super Immune non-lethal only for the Build 42.17 sleep-drain case.
-    -- We intentionally scope this to sleep + high fever so external causes
-    -- (falls, bleeding, combat damage, etc.) can still kill as normal.
-    if not playerdata.SuperImmuneLethal and player:isAsleep() and illness >= 50 and currentHealth < maxHealth then
-        bodyDamage:setOverallBodyHealth(maxHealth)
-        currentHealth = maxHealth
+    -- Safety net: Super Immune non-lethal runs should never die to the zombie virus system itself.
+    -- Keep zombification values cleared while the trait is actively handling recovery.
+    if not playerdata.SuperImmuneLethal then
+        if isClient() then
+            sendClientCommand(player, "ToadTraits", "UpdateStats", { zombie_infection = 0 })
+        else
+            stats:set(CharacterStat.ZOMBIE_INFECTION, 0)
+            MT_ResetInfectionState(bodyDamage)
+        end
     end
 
+    local currentHealth = bodyDamage:getOverallBodyHealth()
     local targetHealth = math.max(maxHealth, 100 - illness) -- Prevent it dropping below maxHealth unless Lethal
 
     if currentHealth >= targetHealth or currentHealth > maxHealth then
@@ -3323,6 +3327,15 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
         -- If the infection is lethal, they should take more damage and die
         if playerdata.SuperImmuneLethal then
             damageAmount = damageAmount + 10.0
+        else
+            -- Keep Super Immune non-lethal from infection damage itself.
+            -- External damage sources (falls, bleeding, combat, etc.) can still kill as normal.
+            local nonLethalFloor = 1.0
+            if currentHealth <= nonLethalFloor then
+                damageAmount = 0
+            else
+                damageAmount = math.min(damageAmount, currentHealth - nonLethalFloor)
+            end
         end
 
         --Rapidly lose health if it is too high, to prevent sleep abuse in order to stay healthy
