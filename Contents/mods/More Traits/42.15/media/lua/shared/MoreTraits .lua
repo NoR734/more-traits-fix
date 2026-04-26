@@ -3299,18 +3299,6 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
 
     local bodyDamage = player:getBodyDamage()
 
-    -- Safety net: Super Immune non-lethal runs should never die to the zombie virus system itself.
-    -- Keep zombification values cleared while the trait is actively handling recovery.
-    if not playerdata.SuperImmuneLethal then
-        if isClient() then
-            sendClientCommand(player, "ToadTraits", "UpdateStats", { zombie_infection = 0 })
-        else
-            stats:set(CharacterStat.ZOMBIE_INFECTION, 0)
-            MT_ResetInfectionState(bodyDamage)
-        end
-    end
-
-    local currentHealth = bodyDamage:getOverallBodyHealth()
     local targetHealth = math.max(maxHealth, 100 - illness) -- Prevent it dropping below maxHealth unless Lethal
 
     if currentHealth >= targetHealth or currentHealth > maxHealth then
