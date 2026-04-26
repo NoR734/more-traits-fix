@@ -223,6 +223,16 @@ local function MT_HasZombieInfection(stats, bodyDamage)
         return false
     end
 
+	-- MP 42.17 can lag behind on infection timeline values after a zombie bite.
+    -- If the character is flagged infected and still has a bite wound, treat it as zombification.
+    local parts = bodyDamage:getBodyParts()
+    for i = 0, parts:size() - 1 do
+        local part = parts:get(i)
+        if part and part.bitten and part:bitten() then
+            return true
+        end
+    end
+	
     local infectionTime = bodyDamage:getInfectionTime()
     local mortalityDuration = bodyDamage:getInfectionMortalityDuration()
     if infectionTime >= 0 or mortalityDuration >= 0 then
@@ -3289,9 +3299,9 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
     local bodyDamage = player:getBodyDamage()
     local currentHealth = bodyDamage:getOverallBodyHealth()
 
-    -- Keep Super Immune non-lethal unless weakness mode marked this run as lethal.
-    -- Build 42.17 can apply extra health drain from fever/infection systems while sleeping,
-    -- so we enforce the minimum floor explicitly instead of relying only on our own damage.
+   -- Keep Super Immune non-lethal only for the Build 42.17 sleep-drain case.
+    -- We intentionally scope this to sleep + high fever so external causes
+    -- (falls, bleeding, combat damage, etc.) can still kill as normal.
     if not playerdata.SuperImmuneLethal and player:isAsleep() and illness >= 50 and currentHealth < maxHealth then
         bodyDamage:setOverallBodyHealth(maxHealth)
         currentHealth = maxHealth
