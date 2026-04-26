@@ -204,20 +204,36 @@ local function MT_HasZombieInfection(stats, bodyDamage)
         return true
     end
 
+    local zombieFever = stats:get(CharacterStat.ZOMBIE_FEVER) or 0
+    if zombieFever > 0 then
+        return true
+    end
+
     if bodyDamage.getInfectionLevel and (bodyDamage:getInfectionLevel() or 0) > 0 then
         return true
     end
 
-    -- Build 42.17 changed wound-infection tuning. In MP, bodyDamage:isInfected() can become
-    -- true from non-zombie infections, so we only trust it if infection timeline values exist.
     local hasBodyInfection = bodyDamage:isInfected()
     if not hasBodyInfection then
         return false
     end
 
+    -- Fake infection is not zombification and should not trigger Super Immune.
+    if stats.isIsFakeInfected and stats:isIsFakeInfected() then
+        return false
+    end
+
     local infectionTime = bodyDamage:getInfectionTime()
     local mortalityDuration = bodyDamage:getInfectionMortalityDuration()
-    return infectionTime >= 0 or mortalityDuration >= 0
+    if infectionTime >= 0 or mortalityDuration >= 0 then
+        return true
+    end
+
+    -- Build 42.17 MP can report zombification via bodyDamage:isInfected() while the
+    -- infection timeline stays at -1. Use sickness as a final signal so Super Immune still
+    -- enters its original fever/low-HP recovery loop.
+    local sickness = stats:get(CharacterStat.SICKNESS) or 0
+    return sickness > 0
 end
 
 function ZombificationCure_OnCreate(items, result, player)
