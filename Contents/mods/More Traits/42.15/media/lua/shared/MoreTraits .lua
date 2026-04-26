@@ -194,6 +194,32 @@ local function MT_ResetInfectionState(bodyDamage)
     end
 end
 
+local function MT_HasZombieInfection(stats, bodyDamage)
+    if not stats or not bodyDamage then
+        return false
+    end
+
+    local zombieInfection = stats:get(CharacterStat.ZOMBIE_INFECTION) or 0
+    if zombieInfection > 0 then
+        return true
+    end
+
+    if bodyDamage.getInfectionLevel and (bodyDamage:getInfectionLevel() or 0) > 0 then
+        return true
+    end
+
+    -- Build 42.17 changed wound-infection tuning. In MP, bodyDamage:isInfected() can become
+    -- true from non-zombie infections, so we only trust it if infection timeline values exist.
+    local hasBodyInfection = bodyDamage:isInfected()
+    if not hasBodyInfection then
+        return false
+    end
+
+    local infectionTime = bodyDamage:getInfectionTime()
+    local mortalityDuration = bodyDamage:getInfectionMortalityDuration()
+    return infectionTime >= 0 or mortalityDuration >= 0
+end
+
 function ZombificationCure_OnCreate(items, result, player)
     local bodyDamage = player:getBodyDamage()
     local stats = player:getStats()
@@ -2983,12 +3009,8 @@ local function SuperImmune(player, playerdata)
     end
 
     local stats = player:getStats()
-    local zombieInfection = stats:get(CharacterStat.ZOMBIE_INFECTION)
     local bodyDamage = player:getBodyDamage()
-    local hasBodyInfection = bodyDamage and bodyDamage:isInfected()
-
-    -- B42 MP can desync zombie infection stat on client, so also trust BodyDamage infection flag.
-    if zombieInfection <= 0 and not hasBodyInfection then
+    if not MT_HasZombieInfection(stats, bodyDamage) then
         return
     end
     if playerdata.SuperImmuneActive then
