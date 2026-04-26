@@ -212,7 +212,7 @@ local function ProcessBodyPartMechanics(player, args)
     for _, index in ipairs(PartIndexes) do
         local bodyPartType = BodyPartType.FromIndex(index)
         local bodyPart = bodyDamage:getBodyPart(bodyPartType)
-        
+
         if bodyPart then
             if args.partPain ~= nil then
                 bodyPart:setAdditionalPain(args.partPain)
@@ -255,7 +255,7 @@ local function ProcessBodyPartMechanics(player, args)
             end
         end
     end
-    
+
     if args.overallHealthFloor ~= nil and bodyDamage:getOverallBodyHealth() < args.overallHealthFloor then
         bodyDamage:setOverallBodyHealth(args.overallHealthFloor)
     end

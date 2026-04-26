@@ -3354,9 +3354,17 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
         if isClient() then
             local bodyPartIndex = BodyPartType.ToIndex(randomBodyPart:getType())
             local args = { bodyPart = bodyPartIndex, partDamage = damageAmount }
+            if not playerdata.SuperImmuneLethal then
+                -- Server must enforce this too, because body-part damage conversion can overshoot overall HP loss while sleeping.
+                args.overallHealthFloor = 1.0
+            end
             sendClientCommand(player, "ToadTraits", "BodyPartMechanics", args)
         else
             randomBodyPart:AddDamage(damageAmount)
+            if not playerdata.SuperImmuneLethal and bodyDamage:getOverallBodyHealth() < 1.0 then
+                -- Keep fake-infection pressure non-lethal even after body-part damage is applied.
+                bodyDamage:setOverallBodyHealth(1.0)
+            end
         end
     end
 
