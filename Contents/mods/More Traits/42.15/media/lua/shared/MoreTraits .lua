@@ -3343,14 +3343,28 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
             damageAmount = damageAmount + 5.0
         end
 
+        if not playerdata.SuperImmuneLethal then
+            local nonLethalFloor = 1.0
+            -- Final clamp is required after sleep-abuse pressure, otherwise sleeping regen can bypass the non-lethal floor.
+            damageAmount = math.min(damageAmount, math.max(0, currentHealth - nonLethalFloor))
+        end
+
         local randomBodyPart = parts:get(ZombRand(0, parts:size() - 1))
 
         if isClient() then
             local bodyPartIndex = BodyPartType.ToIndex(randomBodyPart:getType())
             local args = { bodyPart = bodyPartIndex, partDamage = damageAmount }
+            if not playerdata.SuperImmuneLethal then
+                -- Server must enforce this too, because body-part damage conversion can overshoot overall HP loss while sleeping.
+                args.overallHealthFloor = 1.0
+            end
             sendClientCommand(player, "ToadTraits", "BodyPartMechanics", args)
         else
             randomBodyPart:AddDamage(damageAmount)
+            if not playerdata.SuperImmuneLethal and bodyDamage:getOverallBodyHealth() < 1.0 then
+                -- Keep fake-infection pressure non-lethal even after body-part damage is applied.
+                bodyDamage:setOverallBodyHealth(1.0)
+            end
         end
     end
 
