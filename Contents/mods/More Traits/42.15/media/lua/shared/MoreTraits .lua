@@ -3288,6 +3288,15 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
 
     local bodyDamage = player:getBodyDamage()
     local currentHealth = bodyDamage:getOverallBodyHealth()
+
+    -- Keep Super Immune non-lethal only for the Build 42.17 sleep-drain case.
+    -- We intentionally scope this to sleep + high fever so external causes
+    -- (falls, bleeding, combat damage, etc.) can still kill as normal.
+    if not playerdata.SuperImmuneLethal and player:isAsleep() and illness >= 50 and currentHealth < maxHealth then
+        bodyDamage:setOverallBodyHealth(maxHealth)
+        currentHealth = maxHealth
+    end
+
     local targetHealth = math.max(maxHealth, 100 - illness) -- Prevent it dropping below maxHealth unless Lethal
 
     if currentHealth >= targetHealth or currentHealth > maxHealth then
