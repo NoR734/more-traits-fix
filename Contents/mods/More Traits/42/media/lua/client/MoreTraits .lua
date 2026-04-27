@@ -84,10 +84,9 @@ local function GetXPModifier(player, perk)
 
     -- GymGoer bonus UNIQUEMENT
     if player:HasTrait("gymgoer")
-        and (perk == Perks.Fitness or perk == Perks.Strength)
-        and player:getCurrentState() == FitnessState.instance() then
+        and (perk == Perks.Fitness or perk == Perks.Strength) then
             local gymMod = SandboxVars.MoreTraits.GymGoerPercent or 200
-            m = m + ((gymMod * 0.01) - 1) * 0.1
+            m = m + ((gymMod * 0.01) - 1)
     end
 
     return m
@@ -3304,14 +3303,14 @@ function GymGoer(player, perk, amount)
 
     if player:HasTrait("gymgoer")
         and (perk == Perks.Fitness or perk == Perks.Strength)
-        and player:getCurrentState() == FitnessState.instance() then
+        and amount > 0 then
 
         -- Marquer qu'on traite le bonus gymgoer
         playerData.GymGoerProcessing = true
 
         -- Calculer le bonus XP
         local modifier = SandboxVars.MoreTraits.GymGoerPercent or 200
-        local bonusMultiplier = ((modifier * 0.01) - 1) * 0.1
+        local bonusMultiplier = ((modifier * 0.01) - 1)
         local bonusAmount = amount * bonusMultiplier
 
         -- Ajouter XP sans déclencher l'événement récursivement
