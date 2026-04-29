@@ -3233,6 +3233,11 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
     if not playerdata.SuperImmuneActive then
         return
     end
+    -- B42 MP sleep can run with accelerated server ticks.
+    -- Avoid applying Super Immune HP decay while asleep in MP to prevent sleep deaths.
+    if (isClient() or isServer()) and player:isAsleep() then
+        return
+    end
 
     local maxHealth = isClient() and 20 or 15
     if player:hasTrait(ToadTraitsRegistries.indefatigable) then
@@ -3283,7 +3288,7 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
             damageAmount = damageAmount + 10.0
         end
 
-        --Rapidly lose health if it is too high, to prevent sleep abuse in order to stay healthy
+        -- Rapidly lose health if it is too high to prevent wakeful regeneration abuse.
         if illness >= 50 and currentHealth > maxHealth + 5 then
             damageAmount = damageAmount + 5.0
         end

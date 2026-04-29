@@ -2885,8 +2885,9 @@ local function SuperImmuneFakeInfectionHealthLoss(player, playerdata)
             damageAmount = damageAmount + 10.0
         end
 
-        --Rapidly lose health if it is too high, to prevent sleep abuse in order to stay healthy
-        if illness >= 50 and currentHealth > maxHealth + 5 then
+        -- Rapidly lose health if it is too high to prevent wakeful regeneration abuse.
+        -- In MP sleep can fast-forward server ticks, so don't apply this while asleep.
+        if illness >= 50 and currentHealth > maxHealth + 5 and not player:isAsleep() then
             damageAmount = damageAmount + 5.0
         end
 
