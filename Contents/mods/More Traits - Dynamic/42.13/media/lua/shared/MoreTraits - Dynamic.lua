@@ -111,7 +111,7 @@ local indefatigablePerks = {
     Perks.SmallBlunt, Perks.LongBlade, Perks.SmallBlade, Perks.Spear
 }
 
-function MTDTraitsGainsByLevel(player, perk)
+function MTDTraitsGainsByLevel(player, perk, level)
     if not player or not perk then return end
 
     local playerdata = player:getModData()
@@ -121,33 +121,43 @@ function MTDTraitsGainsByLevel(player, perk)
     local vars = SandboxVars.MoreTraitsDynamic
     local killCountisOn = getActivatedMods():contains("KillCount")
     local isInit = (perk == "characterInitialization")
-    local lvlStrength = player:getPerkLevel(Perks.Strength)
-    local lvlFitness = player:getPerkLevel(Perks.Fitness)
-    local lvlSprint = player:getPerkLevel(Perks.Sprinting)
-    local lvlLightFoot = player:getPerkLevel(Perks.Lightfoot)
-    local lvlNimble = player:getPerkLevel(Perks.Nimble)
-    local lvlSneak = player:getPerkLevel(Perks.Sneak)
-    local lvlAxe = player:getPerkLevel(Perks.Axe)
-    local lvlBlunt = player:getPerkLevel(Perks.Blunt)
-    local lvlSmallBlunt = player:getPerkLevel(Perks.SmallBlunt)
-    local lvlLongBlade = player:getPerkLevel(Perks.LongBlade)
-    local lvlSmallBlade = player:getPerkLevel(Perks.SmallBlade)
-    local lvlSpear = player:getPerkLevel(Perks.Spear)
-    local lvlAim = player:getPerkLevel(Perks.Aiming)
-    local lvlReload = player:getPerkLevel(Perks.Reloading)
-    local lvlMaintenance = player:getPerkLevel(Perks.Maintenance)
-    local lvlCook = player:getPerkLevel(Perks.Cooking)
-    local lvlWood = player:getPerkLevel(Perks.Woodwork)
-    local lvlElec = player:getPerkLevel(Perks.Electricity)
-    local lvlMetal = player:getPerkLevel(Perks.MetalWelding)
-    local lvlMech = player:getPerkLevel(Perks.Mechanics)
-    local lvlTailor = player:getPerkLevel(Perks.Tailoring)
-    local lvlForage = player:getPerkLevel(Perks.PlantScavenging)
-    local lvlDoc = player:getPerkLevel(Perks.Doctor)
-    local lvlFarm = player:getPerkLevel(Perks.Farming)
-    local lvlScav = player:getPerkLevel(Perks.Scavenging)
-    local lvlFish = player:getPerkLevel(Perks.Fishing)
-    local lvlTrap = player:getPerkLevel(Perks.Trapping)
+
+    local function getPerkLevelSynced(perkID)
+        local currentLevel = player:getPerkLevel(perkID)
+        -- In MP, LevelPerk may fire before client-side perk cache updates.
+        -- Prefer the event-provided level for the perk that triggered this callback.
+        if perk == perkID and type(level) == "number" then
+            currentLevel = math.max(currentLevel, level)
+        end
+        return currentLevel
+    end
+    local lvlStrength = getPerkLevelSynced(Perks.Strength)
+    local lvlFitness = getPerkLevelSynced(Perks.Fitness)
+    local lvlSprint = getPerkLevelSynced(Perks.Sprinting)
+    local lvlLightFoot = getPerkLevelSynced(Perks.Lightfoot)
+    local lvlNimble = getPerkLevelSynced(Perks.Nimble)
+    local lvlSneak = getPerkLevelSynced(Perks.Sneak)
+    local lvlAxe = getPerkLevelSynced(Perks.Axe)
+    local lvlBlunt = getPerkLevelSynced(Perks.Blunt)
+    local lvlSmallBlunt = getPerkLevelSynced(Perks.SmallBlunt)
+    local lvlLongBlade = getPerkLevelSynced(Perks.LongBlade)
+    local lvlSmallBlade = getPerkLevelSynced(Perks.SmallBlade)
+    local lvlSpear = getPerkLevelSynced(Perks.Spear)
+    local lvlAim = getPerkLevelSynced(Perks.Aiming)
+    local lvlReload = getPerkLevelSynced(Perks.Reloading)
+    local lvlMaintenance = getPerkLevelSynced(Perks.Maintenance)
+    local lvlCook = getPerkLevelSynced(Perks.Cooking)
+    local lvlWood = getPerkLevelSynced(Perks.Woodwork)
+    local lvlElec = getPerkLevelSynced(Perks.Electricity)
+    local lvlMetal = getPerkLevelSynced(Perks.MetalWelding)
+    local lvlMech = getPerkLevelSynced(Perks.Mechanics)
+    local lvlTailor = getPerkLevelSynced(Perks.Tailoring)
+    local lvlForage = getPerkLevelSynced(Perks.PlantScavenging)
+    local lvlDoc = getPerkLevelSynced(Perks.Doctor)
+    local lvlFarm = getPerkLevelSynced(Perks.Farming)
+    local lvlScav = getPerkLevelSynced(Perks.Scavenging)
+    local lvlFish = getPerkLevelSynced(Perks.Fishing)
+    local lvlTrap = getPerkLevelSynced(Perks.Trapping)
 
     local physicalSum = lvlStrength + lvlFitness
     local combatSum = lvlAxe + lvlBlunt + lvlSmallBlunt + lvlLongBlade + lvlSmallBlade + lvlSpear
@@ -228,7 +238,7 @@ function MTDTraitsGainsByLevel(player, perk)
         if vars.IndefatigableDynamic and not player:hasTrait(ToadTraitsRegistries.indefatigable) then
             local totalLevel = 0
             for _, pID in ipairs(indefatigablePerks) do
-                totalLevel = totalLevel + player:getPerkLevel(pID)
+                totalLevel = totalLevel + getPerkLevelSynced(pID)
             end
 
             if totalLevel >= vars.IndefatigableDynamicSkill then
