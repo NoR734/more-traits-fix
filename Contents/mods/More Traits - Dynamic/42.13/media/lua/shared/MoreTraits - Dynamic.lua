@@ -111,7 +111,7 @@ local indefatigablePerks = {
     Perks.SmallBlunt, Perks.LongBlade, Perks.SmallBlade, Perks.Spear
 }
 
-function MTDTraitsGainsByLevel(player, perk)
+function MTDTraitsGainsByLevel(player, perk, level)
     if not player or not perk then return end
 
     local playerdata = player:getModData()
@@ -122,6 +122,11 @@ function MTDTraitsGainsByLevel(player, perk)
     local killCountisOn = getActivatedMods():contains("KillCount")
     local isInit = (perk == "characterInitialization")
     local lvlStrength = player:getPerkLevel(Perks.Strength)
+    -- In MP, LevelPerk may fire before client-side perk cache updates.
+    -- Use event-provided level when available to avoid 1-level delay for dynamic trait changes.
+    if perk == Perks.Strength and type(level) == "number" then
+        lvlStrength = math.max(lvlStrength, level)
+    end
     local lvlFitness = player:getPerkLevel(Perks.Fitness)
     local lvlSprint = player:getPerkLevel(Perks.Sprinting)
     local lvlLightFoot = player:getPerkLevel(Perks.Lightfoot)
