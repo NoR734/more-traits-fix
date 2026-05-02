@@ -1,18 +1,78 @@
+local function getPlayers()
+    local online = getOnlinePlayers and getOnlinePlayers() or nil
+    if not online then return {} end
+    local players = {}
+    for i = 0, online:size() - 1 do
+        players[#players + 1] = online:get(i)
+    end
+    return players
+end
+
+
+local function resolveTraitId(trait)
+    if ToadTraitsRegistries and ToadTraitsRegistries[trait] then
+        return ToadTraitsRegistries[trait]
+    end
+    return trait
+end
+
+local function hasTrait(player, trait)
+    local traits = player:getCharacterTraits()
+    local id = resolveTraitId(trait)
+    return traits and traits:contains(id)
+end
+
+local function addTrait(player, trait)
+    local traits = player:getCharacterTraits()
+    local id = resolveTraitId(trait)
+    if traits and not traits:contains(id) then
+        traits:add(id)
+    end
+end
+
+local function removeTrait(player, trait)
+    local traits = player:getCharacterTraits()
+    local id = resolveTraitId(trait)
+    if traits and traits:contains(id) then
+        traits:remove(id)
+    end
+end
+
+local function evaluateLevelTraits(player)
+    if not player or player:isDead() then return end
+    local vars = SandboxVars and SandboxVars.MoreTraitsDynamic or nil
+    if not vars then return end
+
+    if vars.PackMouseDynamic == true
+        and hasTrait(player, "packmouse")
+        and player:getPerkLevel(Perks.Strength) >= vars.PackMouseDynamicSkill then
+        removeTrait(player, "packmouse")
+    end
+
+    if vars.PackMuleDynamic == true
+        and not hasTrait(player, "packmule")
+        and player:getPerkLevel(Perks.Strength) >= vars.PackMuleDynamicSkill then
+        addTrait(player, "packmule")
+    end
+
+    if vars.HardyDynamic == true
+        and not hasTrait(player, "hardy")
+        and player:getPerkLevel(Perks.Fitness) >= vars.HardyDynamicSkill then
+        addTrait(player, "hardy")
+    end
+end
+
 local function ProcessTraitChange(player, trait, isAddition)
     if not trait then return end
-    local traits = player:getCharacterTraits()
-    local exactTrait = ToadTraitsRegistries[trait]
-    
     if isAddition then
-        traits:add(exactTrait)
+        addTrait(player, trait)
     else
-        traits:remove(exactTrait)
+        removeTrait(player, trait)
     end
 end
 
 local function ProcessXPBoosts(player, perk, boostAmount)
     if not perk and not boostAmount then return end
-
     player:getXp():setPerkBoost(perk, boostAmount)
 end
 
@@ -29,4 +89,18 @@ local function onClientCommands(module, command, player, args)
     end
 end
 
+local function onMinute()
+    for _, player in ipairs(getPlayers()) do
+        evaluateLevelTraits(player)
+    end
+end
+
+local function onLevelPerk(player, perk)
+    if perk == Perks.Strength or perk == Perks.Fitness then
+        evaluateLevelTraits(player)
+    end
+end
+
 Events.OnClientCommand.Add(onClientCommands)
+Events.EveryOneMinute.Add(onMinute)
+Events.LevelPerk.Add(onLevelPerk)
