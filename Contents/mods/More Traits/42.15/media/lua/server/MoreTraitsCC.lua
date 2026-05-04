@@ -9,6 +9,40 @@ local function tableContains(t, e)
 end
 
 
+
+local function playerHasTrait(player, trait)
+    return player and player:HasTrait(trait)
+end
+
+local traitCommandGuards = {
+    Vagabond = "Vagabond",
+    Scrounger = "Scrounger",
+    Antique = "Antique",
+    Incomprehensive = "Incomprehensive",
+    Gourmand = "Gourmand",
+    GraveRobber = "GraveRobber",
+    FastGimp = "Fast",
+    Immunocompromised = "Immunocompromised",
+    GlassBody = "GlassBody",
+    InfectPlayer = "SelfDestructive",
+    EvasiveDodge = "Evasive",
+    ApplyGordanite = "Gordanite",
+    RevertGordanite = "Gordanite",
+    ProwessGuns = "ProGun",
+}
+
+local function clamp(value, minValue, maxValue)
+    return math.max(minValue, math.min(value, maxValue))
+end
+
+local function canRunTraitCommand(player, command)
+    local requiredTrait = traitCommandGuards[command]
+    if not requiredTrait then
+        return true
+    end
+    return playerHasTrait(player, requiredTrait)
+end
+
 -- Function covers Vagabond, Scrounger, Antique
 local function ProcessTraitLoot(player, args, modData, specificContainer)
     local gridSquare = getCell():getGridSquare(args.x, args.y, args.z)
@@ -23,6 +57,7 @@ local function ProcessTraitLoot(player, args, modData, specificContainer)
 
         -- Check if container exists AND (if specificContainer is nil OR matches the type)
         if container and (not specificContainer or container:getType() == specificContainer) then
+            if type(args.items) ~= "table" then return end
             for _, itemType in ipairs(args.items) do
                 local item = container:AddItem(itemType)
                 if item then
@@ -128,25 +163,25 @@ local function UpdateStats(player, args, command)
     local stats = player:getStats()
 
     if args.panic ~= nil then
-        stats:set(CharacterStat.PANIC, args.panic)
+        stats:set(CharacterStat.PANIC, clamp(args.panic, 0, 100))
     end
     if args.stress ~= nil then
-        stats:set(CharacterStat.STRESS, args.stress)
+        stats:set(CharacterStat.STRESS, clamp(args.stress, 0, 1))
     end
     if args.fatigue ~= nil then
-        stats:set(CharacterStat.FATIGUE, args.fatigue)
+        stats:set(CharacterStat.FATIGUE, clamp(args.fatigue, 0, 1))
     end
     if args.pain ~= nil then
-        stats:set(CharacterStat.PAIN, args.pain)
+        stats:set(CharacterStat.PAIN, clamp(args.pain, 0, 100))
     end
     if args.boredom ~= nil then
-        stats:set(CharacterStat.BOREDOM, args.boredom)
+        stats:set(CharacterStat.BOREDOM, clamp(args.boredom, 0, 100))
     end
     if args.unhappiness ~= nil then
-        stats:set(CharacterStat.UNHAPPINESS, args.unhappiness)
+        stats:set(CharacterStat.UNHAPPINESS, clamp(args.unhappiness, 0, 100))
     end
     if args.zombie_fever ~= nil then
-        stats:set(CharacterStat.ZOMBIE_FEVER, args.zombie_fever)
+        stats:set(CharacterStat.ZOMBIE_FEVER, clamp(args.zombie_fever, 0, 100))
     end
     if args.zombie_infection ~= nil then
         stats:set(CharacterStat.ZOMBIE_INFECTION, args.zombie_infection)
@@ -170,19 +205,19 @@ local function UpdateStats(player, args, command)
         end
     end
     if args.sickness ~= nil then
-        stats:set(CharacterStat.SICKNESS, args.sickness)
+        stats:set(CharacterStat.SICKNESS, clamp(args.sickness, 0, 100))
     end
     if args.anger ~= nil then
-        stats:set(CharacterStat.ANGER, args.anger)
+        stats:set(CharacterStat.ANGER, clamp(args.anger, 0, 1))
     end
     if args.idleness ~= nil then
-        stats:set(CharacterStat.IDLENESS, args.idleness)
+        stats:set(CharacterStat.IDLENESS, clamp(args.idleness, 0, 1))
     end
     if args.poison ~= nil then
-        stats:set(CharacterStat.POISON, args.poison)
+        stats:set(CharacterStat.POISON, clamp(args.poison, 0, 100))
     end
     if args.endurance ~= nil then
-        stats:set(CharacterStat.ENDURANCE, args.endurance)
+        stats:set(CharacterStat.ENDURANCE, clamp(args.endurance, 0, 1))
     end
 
     -- print("Server: " .. tostring(command) .. " (Update) applied to " .. player:getUsername())
@@ -251,7 +286,8 @@ local function ProcessUpdateWeight(player, args)
     if not args.weight then
         return
     end
-    player:setMaxWeightBase(args.weight)
+    local safeWeight = math.max(1, math.min(args.weight, 50))
+    player:setMaxWeightBase(safeWeight)
 end
 
 local FastGimpVector = Vector2.new(0, 0)
@@ -276,7 +312,8 @@ local function ProcessImmunocompromised(player, args)
         local infectionValue = b:getWoundInfectionLevel()
         if infectionValue >= 10.0 then return end
         if b:isInfectedWound() and b:getAlcoholLevel() <= 0 then
-            b:setWoundInfectionLevel(infectionValue + args.infectionIncrease);
+            local safeIncrease = math.max(0, math.min(args.infectionIncrease, 2.0))
+            b:setWoundInfectionLevel(infectionValue + safeIncrease);
         end
     end
 end
@@ -414,6 +451,10 @@ end
 
 local function onClientCommands(module, command, player, args)
     if module ~= 'ToadTraits' then
+        return
+    end
+
+    if not canRunTraitCommand(player, command) then
         return
     end
 
