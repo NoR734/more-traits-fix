@@ -2847,8 +2847,9 @@ local function MT_FastGimpTraits(player)
     FastGimpVector:setX(x * modifier)
     FastGimpVector:setY(y * modifier)
 
-    if isClient() and internalTick % 10 == 0 then
-        sendClientCommand(player, "ToadTraits", "FastGimp", { xSpeed = x, ySpeed = y })
+    if isClient() and not isServer() then
+        sendClientCommand(player, "ToadTraits", "FastGimp", { xSpeed = FastGimpVector:getX(), ySpeed = FastGimpVector:getY() })
+        return
     end
 
     if player.moveUnmodded then
