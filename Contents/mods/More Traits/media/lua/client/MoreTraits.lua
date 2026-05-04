@@ -3354,8 +3354,14 @@ function QuickWorker(_player)
 					modifier = 0;
 				end
 				if delta < 0.99 - (modifier * 0.01) then
-					--Don't overshoot it.
-					action:setCurrentTime((action:getCurrentTime() + modifier * multiplier));
+					-- Clamp to avoid overshooting end-of-action and getting stuck at a full progress bar.
+					local currentTime = action:getCurrentTime();
+					local maxTime = action:getMaxTime();
+					local acceleratedTime = currentTime + modifier * multiplier;
+					if maxTime and maxTime > 1 and acceleratedTime >= maxTime then
+						acceleratedTime = maxTime - 1;
+					end
+					action:setCurrentTime(acceleratedTime);
 				end
 			end
 		end
