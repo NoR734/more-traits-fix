@@ -11,7 +11,26 @@ end
 
 
 local function playerHasTrait(player, trait)
-    return player and player:HasTrait(trait)
+    if not player or not trait then
+        return false
+    end
+
+    if player.HasTrait then
+        return player:HasTrait(trait)
+    end
+
+    if player.hasTrait then
+        return player:hasTrait(trait)
+    end
+
+    if player.getTraits then
+        local traits = player:getTraits()
+        if traits and traits.contains then
+            return traits:contains(trait)
+        end
+    end
+
+    return false
 end
 
 local traitCommandGuards = {
