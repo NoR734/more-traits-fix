@@ -15,18 +15,19 @@ local function playerHasTrait(player, trait)
         return false
     end
 
-    if player.HasTrait then
-        return player:HasTrait(trait)
-    end
-
-    if player.hasTrait then
-        return player:hasTrait(trait)
-    end
-
     if player.getTraits then
         local traits = player:getTraits()
         if traits and traits.contains then
-            return traits:contains(trait)
+            if traits:contains(trait) then
+                return true
+            end
+
+            if TraitFactory and TraitFactory.getTrait then
+                local traitDefinition = TraitFactory.getTrait(trait)
+                if traitDefinition and traits:contains(traitDefinition) then
+                    return true
+                end
+            end
         end
     end
 
